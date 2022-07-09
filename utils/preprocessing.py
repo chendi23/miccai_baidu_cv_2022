@@ -142,7 +142,7 @@ class Pre_processing:
 
         filename = gl.TFRECORDS_DIR + split_mode + '/' + '{0}_{1}.tfrecords'.format(split_mode, index)
         ds = tf.data.TFRecordDataset(filename)
-        ds = ds.map(lambda x: parse_example(x)).prefetch(buffer_size=10).batch(self.args.batch_size)
+        ds = ds.map(lambda x: parse_example(x)).prefetch(buffer_size=10).batch(self.args.batch_size, drop_remainder=True)
         # itr = ds.make_one_shot_iterator()
         # batch_data = itr.get_next()
         for img, lb in ds:

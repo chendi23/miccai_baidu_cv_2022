@@ -37,7 +37,7 @@ class SegNet:
 
     def build_model(self):
         x = tf.keras.layers.Input(shape=gl.RESIZED_IMG)
-        out = hrnet18_v2(x, n_class=self.n_class, include_top=True, mode="seg")  # mode = seg > hrnet v2 + semantic segmentation, clsf > hrnet v2 + classifier, ocr > hrnet v2 + ocr + semantic segmentation
+        out = hrnet32_v2(x, n_class=self.n_class, include_top=True, mode="seg")  # mode = seg > hrnet v2 + semantic segmentation, clsf > hrnet v2 + classifier, ocr > hrnet v2 + ocr + semantic segmentation
         # print(out.shape)
         out = tf.keras.layers.UpSampling2D((4, 4))(out)
         model = tf.keras.Model(x, out)
@@ -85,11 +85,19 @@ class SegNet:
         val_set = self.prepare_input(gl.VAL_DIR)
         model.fit(x=train_set, y=None, epochs=self.epoch, validation_data=val_set,callbacks=[monitor,saver])
 
-    def predict(self,save=False):
+    def predict(self,load_from_weights=True, save_predictions=False):
         test_set = self.prepare_input(gl.TEST_DIR,split='test')
-        model = self.build_model()
-        model.compile()
-        model.load_weights('./ckpt/')
+        if load_from_weights:
+            model = self.build_model()
+            model.compile()
+            model.load_weights('./ckpt/dice/')
+        else:
+            dependencies = {
+                'dice_coef': dice_coef,
+                'my_miou':MyMIOU(num_classes=4)
+            }
+
+            model = tf.keras.models.load_model('./ckpt/',custom_objects=dependencies)
         out = model.predict(x=test_set,verbose=2)
         predict = np.argmax(out, axis=-1)
         predict[predict==0] = 255
@@ -98,7 +106,7 @@ class SegNet:
         predict[predict==3] = 160
         predict = predict.astype(np.float32)
 
-        if save:
+        if save_predictions:
             for i in range(predict.shape[0]):
                 curr = cv2.resize(predict[i], gl.ORIGINAL_IMG_SIZE)
                 # cv2.imwrite('/Users/chendi/data_competition/cv/miccai_2022_baidu/pre_result/Layer_Segmentations/0%d.png' % (predict.shape[0]+i+1), curr)
@@ -109,7 +117,7 @@ class SegNet:
 def main():
     net = SegNet()
     # net.fit()
-    net.predict(save=True)
+    net.predict(load_from_weights=True,save_predictions=True)
 
 if __name__ == '__main__':
     main()
